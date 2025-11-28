@@ -269,6 +269,35 @@ const startParkingSimulation = () => {
     }
   }, 10000); // Toutes les 10 secondes
   
-  return () => clearInterval(parkingInterval);
+  return ({/* Section Automatisation */}
+<div className="bg-white rounded-xl shadow-lg p-6 mb-8">
+  <h2 className="text-2xl font-semibold mb-4">🤖 Automatisation</h2>
+  
+  <div className="flex gap-4 mb-4">
+    <button
+      onClick={() => {
+        startAutoSimulation();
+        startParkingSimulation();
+      }}
+      className="bg-purple-500 text-white px-6 py-2 rounded hover:bg-purple-600"
+    >
+      🚀 Démarrer Simulation Auto
+    </button>
+    
+    <button
+      onClick={() => setAutoSimulation(false)}
+      className="bg-gray-500 text-white px-6 py-2 rounded hover:bg-gray-600"
+    >
+      ⏹️ Arrêter Simulation
+    </button>
+  </div>
+  
+  <div className="text-sm text-gray-600">
+    <p>• Données trafic générées automatiquement toutes les 2 min</p>
+    <p>• Événements parking simulés toutes les 10 sec</p>
+    <p>• Statut: {autoSimulation ? '🟢 ACTIF' : '🔴 INACTIF'}</p>
+  </div>
+</div>) => clearInterval(parkingInterval);
 };
+
 
