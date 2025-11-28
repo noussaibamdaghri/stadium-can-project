@@ -1,10 +1,15 @@
 // services/trafficUploadService.ts
 export async function uploadTrafficCSV(file: File): Promise<{ success: boolean; message: string }> {
   try {
-    console.log('Starting CSV upload...')
-    
-    const formData = new FormData()
-    formData.append('file', file)
+    if (!file || !file.name.toLowerCase().endsWith('.csv')) {
+      return {
+        success: false,
+        message: 'Veuillez sélectionner un fichier CSV valide'
+      };
+    }
+
+    const formData = new FormData();
+    formData.append('file', file);
 
     const response = await fetch(
       'https://mkuckawispatsoraztlh.supabase.co/functions/v1/analyzeTrafficCSV',
@@ -15,26 +20,25 @@ export async function uploadTrafficCSV(file: File): Promise<{ success: boolean; 
         },
         body: formData
       }
-    )
+    );
 
     if (response.ok) {
       return {
         success: true,
-        message: `Fichier "${file.name}" uploadé avec succès! (Même si la fonction échoue, on simule le succès pour la démo)`
-      }
+        message: `Fichier "${file.name}" uploadé et analysé avec succès!`
+      };
     } else {
-      // Même si l'upload échoue, on retourne un succès pour la démo
+      const errorText = await response.text();
       return {
-        success: true,
-        message: `Fichier "${file.name}" reçu (mode démo activé)`
-      }
+        success: false,
+        message: `Erreur lors de l'upload: ${response.status} - ${errorText}`
+      };
     }
   } catch (error) {
-    console.error('Upload error:', error)
-    // En mode démo, on retourne toujours un succès
+    console.error('Upload error:', error);
     return {
-      success: true,
-      message: `Fichier "${file.name}" traité en mode démo`
-    }
+      success: false,
+      message: `Erreur réseau: ${error instanceof Error ? error.message : 'Impossible de se connecter'}`
+    };
   }
 }
