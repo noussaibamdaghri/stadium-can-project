@@ -59,19 +59,37 @@ export default function AdminPage() {
     }
   }
 
-  const simulateCarEvent = async (lotId: number, delta: number) => {
-    setSimulating(true)
-    try {
-      await updateParkingOccupancy(lotId, delta)
-      setTimeout(() => loadParkings(), 500)
-    } catch (error) {
-      console.error('Error simulating event:', error)
-      alert('Erreur lors de la simulation: ' + (error instanceof Error ? error.message : 'Unknown error'))
-    } finally {
-      setSimulating(false)
-    }
-  }
+  // Dans la fonction simulateCarEvent - modifiez comme ceci :
+const simulateCarEvent = async (lotId: number, delta: number) => {
+  setSimulating(true)
+  try {
+    // Recharger d'abord les données fraîches
+    await loadParkings()
+    
+    // Trouver le parking actuel
+    const currentParking = parkings.find(p => p.id === lotId)
+    if (!currentParking) throw new Error('Parking non trouvé')
 
+    // Vérifier les limites
+    const newOccupancy = currentParking.current_occupancy + delta
+    if (newOccupancy < 0 || newOccupancy > currentParking.capacity) {
+      alert(`Impossible: occupation serait ${newOccupancy} (min: 0, max: ${currentParking.capacity})`)
+      return
+    }
+
+    // Mise à jour
+    await updateParkingOccupancy(lotId, delta)
+    
+    // Recharger après un court délai
+    setTimeout(() => loadParkings(), 300)
+    
+  } catch (error) {
+    console.error('Error simulating event:', error)
+    alert('Erreur lors de la simulation. Vérifiez la console.')
+  } finally {
+    setSimulating(false)
+  }
+}
   useEffect(() => {
     if (!autoSimulation) return
 
@@ -257,3 +275,4 @@ export default function AdminPage() {
     </div>
   )
 }
+
