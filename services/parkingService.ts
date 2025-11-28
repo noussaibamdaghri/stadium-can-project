@@ -5,62 +5,56 @@ export interface ParkingLot {
   id: number
   stadium_id: number
   name: string
-  capacity: number  // CHANGÉ: capacity_total → capacity
-  current_occupancy: number  // CHANGÉ: current_occupied → current_occupancy
+  capacity: number
+  current_occupancy: number
   entrance_name?: string
 }
 
 export async function getParkingLots(): Promise<ParkingLot[]> {
   try {
-    console.log('🔄 Fetching parking data from Supabase...')
-    
     const { data, error } = await supabase
       .from('parking_lots')
       .select('*')
       .order('name')
 
-    if (error) {
-      console.error('❌ Supabase error:', error)
-      throw new Error(`Failed to fetch parking data: ${error.message}`)
-    }
-
-    console.log(`✅ Received ${data?.length || 0} parking lots`)
+    if (error) throw error
     return data || []
   } catch (error) {
-    console.error('❌ Error in getParkingLots:', error)
+    console.error('Error fetching parking lots:', error)
     throw error
   }
 }
 
 export async function updateParkingOccupancy(lotId: number, delta: number) {
   try {
-    console.log(`🔄 Updating parking ${lotId} with delta ${delta}`)
+    console.log(`🔄 Mise à jour directe du parking ${lotId} avec delta ${delta}`)
     
-    const response = await fetch(
-      'https://mkuckawispatsoraztlh.supabase.co/functions/v1/updateParkingFromEvent',
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}`
-        },
-        body: JSON.stringify({
-          lot_id: lotId,  // CHANGÉ: parking_lot_id → lot_id (comme dans l'Edge Function)
-          delta: delta,
-          timestamp: new Date().toISOString()
-        })
-      }
-    )
+    // SOLUTION SIMPLE : Mise à jour directe dans la base
+    const { data: current, error: fetchError } = await supabase
+      .from('parking_lots')
+      .select('current_occupancy, capacity')
+      .eq('id', lotId)
+      .single()
 
-    if (!response.ok) {
-      const errorText = await response.text()
-      throw new Error(`Edge Function error: ${response.status} - ${errorText}`)
-    }
+    if (fetchError) throw fetchError
 
-    return await response.json()
+    const newOccupancy = Math.max(0, Math.min(
+      current.current_occupancy + delta,
+      current.capacity
+    ))
+
+    const { error: updateError } = await supabase
+      .from('parking_lots')
+      .update({ current_occupancy: newOccupancy })
+      .eq('id', lotId)
+
+    if (updateError) throw updateError
+
+    console.log(`✅ Parking ${lotId} mis à jour: ${current.current_occupancy} → ${newOccupancy}`)
+    return { success: true, new_occupancy: newOccupancy }
+    
   } catch (error) {
-    console.error('❌ Error in updateParkingOccupancy:', error)
+    console.error('❌ Error updating parking:', error)
     throw error
   }
 }
-
