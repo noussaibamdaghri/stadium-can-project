@@ -2,7 +2,7 @@
 'use client'
 
 import { useState, useRef } from 'react'
-import { getParkingLots, updateParkingOccupancy, ParkingLot } from '@/services/parkingService'
+import { getParkingLots, updateParkingOccupancy, ParkingLot } from '../../services/parkingService'
 
 export default function AdminPage() {
   const [parkings, setParkings] = useState<ParkingLot[]>([])
@@ -191,3 +191,4 @@ export default function AdminPage() {
     </div>
   )
 }
+
