@@ -1,26 +1,38 @@
 // app/admin/page.tsx - Seulement les parties modifiées
 
-// ... dans les statistiques, corriger les calculs :
-<div className="bg-green-50 rounded-lg p-4 text-center">
-  <p className="text-2xl font-bold text-green-600">
-    {parkings.reduce((total, p) => total + p.capacity, 0)}  {/* CHANGÉ: capacity_total → capacity */}
-  </p>
-  <p className="text-sm text-green-600">Capacité totale</p>
-</div>
-<div className="bg-yellow-50 rounded-lg p-4 text-center">
-  <p className="text-2xl font-bold text-yellow-600">
-    {parkings.reduce((total, p) => total + p.current_occupancy, 0)}  {/* CHANGÉ: current_occupied → current_occupancy */}
-  </p>
-  <p className="text-sm text-yellow-600">Véhicules actuels</p>
-</div>
-<div className="bg-purple-50 rounded-lg p-4 text-center">
-  <p className="text-2xl font-bold text-purple-600">
-    {parkings.length > 0 ? 
-      ((parkings.reduce((total, p) => total + p.current_occupancy, 0) /   // CORRIGÉ
-        parkings.reduce((total, p) => total + p.capacity, 1)) * 100).toFixed(1)   // CORRIGÉ
-      : '0'}%
-  </p>
-  <p className="text-sm text-purple-600">Occupation moyenne</p>
+// app/admin/page.tsx
+// REMPLACEZ la section des statistiques par ceci :
+
+{/* Statistics */}
+<div className="bg-white rounded-xl shadow-lg p-6">
+  <h2 className="text-2xl font-semibold mb-6">📈 Statistiques Globales</h2>
+  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+    <div className="bg-blue-50 rounded-lg p-4 text-center">
+      <p className="text-2xl font-bold text-blue-600">{parkings.length}</p>
+      <p className="text-sm text-blue-600">Parkings gérés</p>
+    </div>
+    <div className="bg-green-50 rounded-lg p-4 text-center">
+      <p className="text-2xl font-bold text-green-600">
+        {parkings.reduce((total, p) => total + p.capacity, 0)}
+      </p>
+      <p className="text-sm text-green-600">Capacité totale</p>
+    </div>
+    <div className="bg-yellow-50 rounded-lg p-4 text-center">
+      <p className="text-2xl font-bold text-yellow-600">
+        {parkings.reduce((total, p) => total + p.current_occupancy, 0)}
+      </p>
+      <p className="text-sm text-yellow-600">Véhicules actuels</p>
+    </div>
+    <div className="bg-purple-50 rounded-lg p-4 text-center">
+      <p className="text-2xl font-bold text-purple-600">
+        {parkings.length > 0 ? 
+          ((parkings.reduce((total, p) => total + p.current_occupancy, 0) / 
+            parkings.reduce((total, p) => total + p.capacity, 1)) * 100).toFixed(1) 
+          : '0'}%
+      </p>
+      <p className="text-sm text-purple-600">Occupation moyenne</p>
+    </div>
+  </div>
 </div>
 
 // ... dans l'affichage des parkings :
@@ -44,3 +56,4 @@
 >
   ➖ Sortie
 </button>
+
