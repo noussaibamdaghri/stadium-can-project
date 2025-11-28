@@ -223,3 +223,52 @@ export default function AdminPage() {
     </div>
   )
 }
+const [autoSimulation, setAutoSimulation] = useState(false);
+
+// Simulation automatique des données de trafic
+const startAutoSimulation = () => {
+  setAutoSimulation(true);
+  
+  // Générer des données de trafic fictives toutes les 2 minutes
+  const interval = setInterval(async () => {
+    try {
+      // Simuler des données de trafic
+      const simulatedData = {
+        timestamp: new Date().toISOString(),
+        road_segment: ['entrance_north', 'entrance_south', 'entrance_east'][Math.floor(Math.random() * 3)],
+        cars_count: Math.floor(Math.random() * 100) + 20,
+        avg_speed: Math.floor(Math.random() * 40) + 20,
+        congestion_level: Math.floor(Math.random() * 4)
+      };
+      
+      console.log('Données trafic simulées:', simulatedData);
+      
+      // Ici, vous pourriez envoyer ces données à Supabase
+      // via une autre Edge Function de Person A
+      
+    } catch (error) {
+      console.error('Erreur simulation auto:', error);
+    }
+  }, 120000); // 2 minutes
+  
+  return () => clearInterval(interval);
+};
+
+// Simulation automatique des événements parking (comme Person C)
+const startParkingSimulation = () => {
+  const parkingInterval = setInterval(async () => {
+    if (parkings.length > 0) {
+      const randomParking = parkings[Math.floor(Math.random() * parkings.length)];
+      const delta = Math.random() > 0.5 ? 1 : -1;
+      
+      // Vérifier les limites
+      if ((delta === 1 && randomParking.current_occupied < randomParking.capacity_total) ||
+          (delta === -1 && randomParking.current_occupied > 0)) {
+        await simulateCarEvent(randomParking.id, delta);
+      }
+    }
+  }, 10000); // Toutes les 10 secondes
+  
+  return () => clearInterval(parkingInterval);
+};
+
