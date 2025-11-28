@@ -1,33 +1,34 @@
 // app/api/recommendation/route.ts
 import { NextResponse } from 'next/server'
 import { getParkingLots } from '../../../services/parkingService'
-import { getTrafficStats } from '../../../services/trafficService'
+import { getTrafficHistory } from '../../../services/trafficService' // CHANGÉ: getTrafficStats → getTrafficHistory
 
 export async function GET() {
   try {
-    const [parkings, trafficStats] = await Promise.all([
+    const [parkings, trafficHistory] = await Promise.all([
       getParkingLots(),
-      getTrafficStats()
+      getTrafficHistory()
     ])
 
     // Trouver le parking avec le plus de places libres
     const bestParking = parkings.reduce((best, current) => {
-      const bestFree = best.capacity_total - best.current_occupied
-      const currentFree = current.capacity_total - current.current_occupied
+      const bestFree = best.capacity - best.current_occupancy
+      const currentFree = current.capacity - current.current_occupancy
       return currentFree > bestFree ? current : best
     })
 
-    // Analyser le trafic (simplifié)
-    const currentHour = new Date().getHours()
+    // Analyser le trafic basé sur l'historique
     let trafficAdvice = "Trafic normal"
     let bestTime = "17h45-18h00"
     
-    if (trafficStats.length > 0) {
-      const latest = trafficStats[0]
-      if (latest.avg_congestion > 2) {
+    if (trafficHistory.length > 0) {
+      const recentTraffic = trafficHistory.slice(0, 3)
+      const totalVehicles = recentTraffic.reduce((sum, record) => sum + record.vehicles_in, 0)
+      
+      if (totalVehicles > 200) {
         trafficAdvice = "Trafic dense - venir plus tôt"
         bestTime = "17h00-17h30"
-      } else if (latest.avg_congestion < 1) {
+      } else if (totalVehicles < 80) {
         trafficAdvice = "Trafic fluide"
         bestTime = "18h00-18h15"
       }
@@ -36,8 +37,8 @@ export async function GET() {
     const recommendation = {
       recommendedParking: bestParking.name,
       optimalTime: bestTime,
-      entrance: "Porte Nord", // Basé sur le trafic
-      freeSpaces: bestParking.capacity_total - bestParking.current_occupied,
+      entrance: bestParking.entrance_name || "Porte Nord",
+      freeSpaces: bestParking.capacity - bestParking.current_occupancy,
       trafficStatus: trafficAdvice,
       confidence: "high",
       lastUpdated: new Date().toISOString()
