@@ -27,11 +27,23 @@ export default function SupporterPage() {
   }
 
   useEffect(() => {
-    fetchData()
-    // Rafraîchissement automatique toutes les 30 secondes
-    const interval = setInterval(fetchData, 30000)
-    return () => clearInterval(interval)
-  }, [])
+  fetchData()
+  
+  // Abonnement temps réel Supabase
+  const subscription = supabase
+    .channel('parking-changes')
+    .on('postgres_changes', 
+      { event: '*', schema: 'public', table: 'parking_lots' }, 
+      () => {
+        fetchData() // Recharge les données à chaque changement
+      }
+    )
+    .subscribe()
+
+  return () => {
+    subscription.unsubscribe()
+  }
+}, [])
 
   const getRecommendation = () => {
     if (parkings.length === 0) return null
@@ -200,4 +212,5 @@ export default function SupporterPage() {
   )
 
 }
+
 
