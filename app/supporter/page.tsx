@@ -4,7 +4,7 @@
 import { useState, useEffect } from 'react'
 import { getParkingLots, ParkingLot } from '../../services/parkingService'
 import { getTrafficHistory, TrafficData } from '../../services/trafficService'
-import { supabase } from '@/lib/supabase' // ← AJOUT IMPORT MANQUANT
+import { supabase } from '../../lib/supabase' // ← AJOUT IMPORT MANQUANT
 
 export default function SupporterPage() {
   const [parkings, setParkings] = useState<ParkingLot[]>([])
@@ -213,6 +213,7 @@ export default function SupporterPage() {
   )
 
 }
+
 
 
 
