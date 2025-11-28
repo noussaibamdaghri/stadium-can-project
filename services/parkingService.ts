@@ -5,32 +5,37 @@ export interface ParkingLot {
   id: number
   stadium_id: number
   name: string
-  capacity_total: number
-  current_occupied: number
+  capacity: number  // CHANGÉ: capacity_total → capacity
+  current_occupancy: number  // CHANGÉ: current_occupied → current_occupancy
+  entrance_name?: string
 }
 
 export async function getParkingLots(): Promise<ParkingLot[]> {
   try {
+    console.log('🔄 Fetching parking data from Supabase...')
+    
     const { data, error } = await supabase
       .from('parking_lots')
       .select('*')
       .order('name')
 
     if (error) {
-      console.error('Error fetching parking lots:', error)
+      console.error('❌ Supabase error:', error)
       throw new Error(`Failed to fetch parking data: ${error.message}`)
     }
 
+    console.log(`✅ Received ${data?.length || 0} parking lots`)
     return data || []
   } catch (error) {
-    console.error('Error in getParkingLots:', error)
+    console.error('❌ Error in getParkingLots:', error)
     throw error
   }
 }
 
-// Utilise l'Edge Function de Person A
 export async function updateParkingOccupancy(lotId: number, delta: number) {
   try {
+    console.log(`🔄 Updating parking ${lotId} with delta ${delta}`)
+    
     const response = await fetch(
       'https://mkuckawispatsoraztlh.supabase.co/functions/v1/updateParkingFromEvent',
       {
@@ -40,7 +45,7 @@ export async function updateParkingOccupancy(lotId: number, delta: number) {
           'Authorization': `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}`
         },
         body: JSON.stringify({
-          parking_lot_id: lotId,
+          lot_id: lotId,  // CHANGÉ: parking_lot_id → lot_id (comme dans l'Edge Function)
           delta: delta,
           timestamp: new Date().toISOString()
         })
@@ -54,7 +59,7 @@ export async function updateParkingOccupancy(lotId: number, delta: number) {
 
     return await response.json()
   } catch (error) {
-    console.error('Error updating parking:', error)
+    console.error('❌ Error in updateParkingOccupancy:', error)
     throw error
   }
 }
