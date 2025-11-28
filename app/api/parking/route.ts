@@ -1,6 +1,6 @@
 // app/api/parking/route.ts
 import { NextResponse } from 'next/server'
-import { getParkingLots } from '@/services/parkingService'
+import { getParkingLots } from '../../../services/parkingService'
 
 export async function GET() {
   try {
@@ -33,3 +33,4 @@ export async function GET() {
   }
 
 }
+
