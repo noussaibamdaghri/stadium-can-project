@@ -1,7 +1,6 @@
 // services/trafficUploadService.ts
 export async function uploadTrafficCSV(file: File): Promise<{ success: boolean; message: string }> {
   try {
-    // Vérification du fichier
     if (!file || !file.name.toLowerCase().endsWith('.csv')) {
       return {
         success: false,
@@ -9,47 +8,56 @@ export async function uploadTrafficCSV(file: File): Promise<{ success: boolean; 
       };
     }
 
-    // Création du FormData
+    // LISEZ BIEN CE CHANGEMENT :
     const formData = new FormData();
-    formData.append('csvFile', file); // Nom important : 'csvFile'
+    formData.append('file', file); // Peut-être 'file' au lieu de 'csvFile'
 
     const response = await fetch(
       'https://mkuckawispatsoraztlh.supabase.co/functions/v1/analyzeTrafficCSV',
       {
         method: 'POST',
         headers: {
+          // ESSAYEZ AVEC ET SANS CE HEADER :
           'Authorization': `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}`
+          // Peut-être aussi besoin de : 'Content-Type': 'multipart/form-data'
         },
         body: formData
       }
     );
 
-    console.log('Status de la réponse:', response.status);
-    console.log('Headers:', response.headers);
+    if (response.status === 401) {
+      return {
+        success: false,
+        message: 'Erreur d\'authentification. Vérifiez la clé Supabase.'
+      };
+    }
+
+    if (response.status === 413) {
+      return {
+        success: false,
+        message: 'Fichier trop volumineux.'
+      };
+    }
 
     if (!response.ok) {
-      let errorMessage = `Erreur HTTP: ${response.status}`;
-      try {
-        const errorData = await response.text();
-        errorMessage += ` - ${errorData}`;
-      } catch (e) {
-        errorMessage += ' - Impossible de lire le message d\'erreur';
-      }
-      throw new Error(errorMessage);
+      const errorText = await response.text();
+      return {
+        success: false,
+        message: `Erreur serveur (${response.status}): ${errorText}`
+      };
     }
 
     const result = await response.json();
-    console.log('Réponse réussie:', result);
     
     return {
       success: true,
-      message: `Fichier "${file.name}" analysé avec succès! Données trafic mises à jour.`
+      message: `Fichier "${file.name}" uploadé! Analyse en cours...`
     };
   } catch (error) {
-    console.error('Erreur détaillée upload CSV:', error);
+    console.error('Erreur upload:', error);
     return {
       success: false,
-      message: `Erreur de connexion: ${error instanceof Error ? error.message : 'Problème réseau'}`
+      message: `Erreur réseau: ${error instanceof Error ? error.message : 'Impossible de se connecter au serveur'}`
     };
   }
 }
