@@ -6,13 +6,13 @@ export async function GET() {
   try {
     const parkingLots = await getParkingLots()
     
-    // Calculer les recommandations
+    // Calculer les recommandations avec les BONS noms de colonnes
     const recommendations = parkingLots.map(lot => ({
       id: lot.id,
       name: lot.name,
-      occupancy: (lot.current_occupied / lot.capacity_total) * 100,
-      freeSpaces: lot.capacity_total - lot.current_occupied,
-      recommendation: (lot.current_occupied / lot.capacity_total) < 0.7 ? 'RECOMMENDED' : 'AVOID'
+      occupancy: (lot.current_occupancy / lot.capacity) * 100, // CORRIGÉ: current_occupancy
+      freeSpaces: lot.capacity - lot.current_occupancy, // CORRIGÉ: capacity
+      recommendation: (lot.current_occupancy / lot.capacity) < 0.7 ? 'RECOMMENDED' : 'AVOID' // CORRIGÉ
     }))
 
     return NextResponse.json({
@@ -31,6 +31,4 @@ export async function GET() {
       { status: 500 }
     )
   }
-
 }
-
