@@ -12,17 +12,38 @@ export interface TrafficData {
 }
 
 export async function getTrafficHistory(): Promise<TrafficData[]> {
-  const { data, error } = await supabase
-    .from('traffic_history')
-    .select('*')
-    .order('timestamp', { ascending: false })
-    .limit(50)
+  try {
+    const { data, error } = await supabase
+      .from('traffic_history')
+      .select('*')
+      .order('timestamp', { ascending: false })
+      .limit(50)
 
-  if (error) {
-    console.error('Error fetching traffic history:', error)
-    throw new Error('Failed to fetch traffic data')
+    if (error) {
+      console.error('Error fetching traffic history:', error)
+      throw new Error(`Failed to fetch traffic data: ${error.message}`)
+    }
+
+    return data || []
+  } catch (error) {
+    console.error('Error in getTrafficHistory:', error)
+    throw error
   }
-
-  return data || []
 }
 
+// Nouvelle fonction pour les statistiques de trafic
+export async function getTrafficStats() {
+  try {
+    const { data, error } = await supabase
+      .from('traffic_stats')
+      .select('*')
+      .order('period_start', { ascending: false })
+      .limit(10)
+
+    if (error) throw error
+    return data || []
+  } catch (error) {
+    console.error('Error fetching traffic stats:', error)
+    return []
+  }
+}
