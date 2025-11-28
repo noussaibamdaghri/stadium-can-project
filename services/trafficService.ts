@@ -30,3 +30,25 @@ export async function getTrafficHistory(): Promise<TrafficData[]> {
     throw error
   }
 }
+
+// AJOUTEZ cette nouvelle fonction
+export async function getTrafficStats() {
+  try {
+    const { data, error } = await supabase
+      .from('traffic_stats')
+      .select('*')
+      .order('bucket_start', { ascending: false })
+      .limit(10)
+
+    if (error) {
+      console.error('Error fetching traffic stats:', error)
+      return []
+    }
+
+    return data || []
+  } catch (error) {
+    console.error('Error in getTrafficStats:', error)
+    return []
+  }
+}
+
