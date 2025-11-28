@@ -198,4 +198,5 @@ export default function SupporterPage() {
       </div>
     </div>
   )
+
 }
