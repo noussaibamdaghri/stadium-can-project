@@ -1,5 +1,5 @@
 // services/parkingService.ts
-import { supabase } from '@/lib/supabase'
+import { supabase } from '../lib/supabase'
 
 export interface ParkingLot {
   id: number
@@ -45,3 +45,4 @@ export async function updateParkingOccupancy(lotId: number, delta: number) {
 
   if (error) throw error
 }
+
