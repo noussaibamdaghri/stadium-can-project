@@ -1,7 +1,7 @@
 // app/admin/page.tsx
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { getParkingLots, updateParkingOccupancy, ParkingLot } from '../../services/parkingService'
 import { uploadTrafficCSV } from '../../services/trafficUploadService'
 
@@ -9,6 +9,7 @@ export default function AdminPage() {
   const [parkings, setParkings] = useState<ParkingLot[]>([])
   const [uploading, setUploading] = useState(false)
   const [simulating, setSimulating] = useState(false)
+  const [autoSimulation, setAutoSimulation] = useState(false)
   const [uploadResult, setUploadResult] = useState<{success: boolean; message: string} | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -23,15 +24,14 @@ export default function AdminPage() {
   }
 
   // Charger les parkings au montage
-  useState(() => {
+  useEffect(() => {
     loadParkings()
-  })
+  }, [])
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
     if (!file) return
 
-    // Vérifier que c'est un CSV
     if (!file.name.toLowerCase().endsWith('.csv')) {
       alert('Veuillez sélectionner un fichier CSV')
       return
@@ -45,11 +45,7 @@ export default function AdminPage() {
       setUploadResult(result)
       
       if (result.success) {
-        // Recharger les données trafic après upload réussi
-        setTimeout(() => {
-          // Ici vous pourriez recharger les données trafic
-          console.log('CSV uploadé avec succès, données mises à jour')
-        }, 1000)
+        console.log('CSV uploadé avec succès')
       }
     } catch (error) {
       setUploadResult({
@@ -68,14 +64,40 @@ export default function AdminPage() {
     setSimulating(true)
     try {
       await updateParkingOccupancy(lotId, delta)
-      await loadParkings()
-      alert(`Parking mis à jour: ${delta > 0 ? 'Entrée' : 'Sortie'} de véhicule`)
+      // Attendre un peu puis recharger
+      setTimeout(() => loadParkings(), 500)
     } catch (error) {
-      alert('Erreur lors de la simulation')
+      console.error('Error simulating event:', error)
+      alert('Erreur lors de la simulation: ' + (error instanceof Error ? error.message : 'Unknown error'))
     } finally {
       setSimulating(false)
     }
   }
+
+  // Simulation automatique
+  useEffect(() => {
+    if (!autoSimulation) return
+
+    const interval = setInterval(async () => {
+      if (parkings.length > 0) {
+        const randomParking = parkings[Math.floor(Math.random() * parkings.length)]
+        const delta = Math.random() > 0.5 ? 1 : -1
+        
+        // Vérifier les limites
+        if ((delta === 1 && randomParking.current_occupied < randomParking.capacity_total) ||
+            (delta === -1 && randomParking.current_occupied > 0)) {
+          try {
+            await updateParkingOccupancy(randomParking.id, delta)
+            await loadParkings()
+          } catch (error) {
+            console.error('Auto simulation error:', error)
+          }
+        }
+      }
+    }, 10000) // Toutes les 10 secondes
+
+    return () => clearInterval(interval)
+  }, [autoSimulation, parkings])
 
   return (
     <div className="min-h-screen bg-gray-50 p-6">
@@ -87,7 +109,6 @@ export default function AdminPage() {
         <div className="bg-white rounded-xl shadow-lg p-6 mb-8">
           <h2 className="text-2xl font-semibold mb-4">📊 Upload des Données Trafic</h2>
           
-          {/* Résultat de l'upload */}
           {uploadResult && (
             <div className={`mb-4 p-4 rounded-lg ${
               uploadResult.success ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'
@@ -135,14 +156,27 @@ export default function AdminPage() {
                 '📁 Choisir un fichier CSV'
               )}
             </label>
-            
-            {/* Informations de débogage */}
-            <div className="mt-4 p-3 bg-blue-50 rounded-lg">
-              <p className="text-sm text-blue-700">
-                <strong>Endpoint utilisé:</strong><br/>
-                <code className="text-xs">https://mkuckawispatsoraztlh.supabase.co/functions/v1/analyzeTrafficCSV</code>
-              </p>
-            </div>
+          </div>
+        </div>
+
+        {/* Automatisation */}
+        <div className="bg-white rounded-xl shadow-lg p-6 mb-8">
+          <h2 className="text-2xl font-semibold mb-4">🤖 Automatisation</h2>
+          
+          <div className="flex gap-4 mb-4">
+            <button
+              onClick={() => setAutoSimulation(!autoSimulation)}
+              className={`px-6 py-2 rounded text-white ${
+                autoSimulation ? 'bg-red-500 hover:bg-red-600' : 'bg-green-500 hover:bg-green-600'
+              }`}
+            >
+              {autoSimulation ? '⏹️ Arrêter Simulation' : '🚀 Démarrer Simulation Auto'}
+            </button>
+          </div>
+          
+          <div className="text-sm text-gray-600">
+            <p>• Événements parking simulés toutes les 10 sec</p>
+            <p>• Statut: {autoSimulation ? '🟢 ACTIF' : '🔴 INACTIF'}</p>
           </div>
         </div>
 
@@ -157,6 +191,16 @@ export default function AdminPage() {
                 <div className="flex justify-between items-center mb-2">
                   <span className="text-sm text-gray-600">Occupation actuelle:</span>
                   <span className="font-medium">{parking.current_occupied}/{parking.capacity_total}</span>
+                </div>
+                <div className="w-full bg-gray-200 rounded-full h-2 mb-4">
+                  <div 
+                    className="h-2 rounded-full bg-blue-500 transition-all"
+                    style={{ 
+                      width: `${(parking.current_occupied / parking.capacity_total) * 100}%`,
+                      backgroundColor: (parking.current_occupied / parking.capacity_total) > 0.8 ? '#ef4444' : 
+                                    (parking.current_occupied / parking.capacity_total) > 0.6 ? '#f59e0b' : '#10b981'
+                    }}
+                  ></div>
                 </div>
                 <div className="flex gap-2">
                   <button
@@ -178,14 +222,12 @@ export default function AdminPage() {
             ))}
           </div>
 
-          <div className="flex gap-4">
-            <button
-              onClick={loadParkings}
-              className="bg-blue-500 text-white px-6 py-2 rounded hover:bg-blue-600"
-            >
-              📊 Actualiser les Données
-            </button>
-          </div>
+          <button
+            onClick={loadParkings}
+            className="bg-blue-500 text-white px-6 py-2 rounded hover:bg-blue-600"
+          >
+            📊 Actualiser les Données
+          </button>
         </div>
 
         {/* Statistics */}
@@ -223,81 +265,3 @@ export default function AdminPage() {
     </div>
   )
 }
-const [autoSimulation, setAutoSimulation] = useState(false);
-
-// Simulation automatique des données de trafic
-const startAutoSimulation = () => {
-  setAutoSimulation(true);
-  
-  // Générer des données de trafic fictives toutes les 2 minutes
-  const interval = setInterval(async () => {
-    try {
-      // Simuler des données de trafic
-      const simulatedData = {
-        timestamp: new Date().toISOString(),
-        road_segment: ['entrance_north', 'entrance_south', 'entrance_east'][Math.floor(Math.random() * 3)],
-        cars_count: Math.floor(Math.random() * 100) + 20,
-        avg_speed: Math.floor(Math.random() * 40) + 20,
-        congestion_level: Math.floor(Math.random() * 4)
-      };
-      
-      console.log('Données trafic simulées:', simulatedData);
-      
-      // Ici, vous pourriez envoyer ces données à Supabase
-      // via une autre Edge Function de Person A
-      
-    } catch (error) {
-      console.error('Erreur simulation auto:', error);
-    }
-  }, 120000); // 2 minutes
-  
-  return () => clearInterval(interval);
-};
-
-// Simulation automatique des événements parking (comme Person C)
-const startParkingSimulation = () => {
-  const parkingInterval = setInterval(async () => {
-    if (parkings.length > 0) {
-      const randomParking = parkings[Math.floor(Math.random() * parkings.length)];
-      const delta = Math.random() > 0.5 ? 1 : -1;
-      
-      // Vérifier les limites
-      if ((delta === 1 && randomParking.current_occupied < randomParking.capacity_total) ||
-          (delta === -1 && randomParking.current_occupied > 0)) {
-        await simulateCarEvent(randomParking.id, delta);
-      }
-    }
-  }, 10000); // Toutes les 10 secondes
-  
-  return ({/* Section Automatisation */}
-<div className="bg-white rounded-xl shadow-lg p-6 mb-8">
-  <h2 className="text-2xl font-semibold mb-4">🤖 Automatisation</h2>
-  
-  <div className="flex gap-4 mb-4">
-    <button
-      onClick={() => {
-        startAutoSimulation();
-        startParkingSimulation();
-      }}
-      className="bg-purple-500 text-white px-6 py-2 rounded hover:bg-purple-600"
-    >
-      🚀 Démarrer Simulation Auto
-    </button>
-    
-    <button
-      onClick={() => setAutoSimulation(false)}
-      className="bg-gray-500 text-white px-6 py-2 rounded hover:bg-gray-600"
-    >
-      ⏹️ Arrêter Simulation
-    </button>
-  </div>
-  
-  <div className="text-sm text-gray-600">
-    <p>• Données trafic générées automatiquement toutes les 2 min</p>
-    <p>• Événements parking simulés toutes les 10 sec</p>
-    <p>• Statut: {autoSimulation ? '🟢 ACTIF' : '🔴 INACTIF'}</p>
-  </div>
-</div>) => clearInterval(parkingInterval);
-};
-
-
