@@ -3,11 +3,13 @@
 
 import { useState, useRef } from 'react'
 import { getParkingLots, updateParkingOccupancy, ParkingLot } from '../../services/parkingService'
+import { uploadTrafficCSV } from '../../services/trafficUploadService'
 
 export default function AdminPage() {
   const [parkings, setParkings] = useState<ParkingLot[]>([])
   const [uploading, setUploading] = useState(false)
   const [simulating, setSimulating] = useState(false)
+  const [uploadResult, setUploadResult] = useState<{success: boolean; message: string} | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const loadParkings = async () => {
@@ -29,18 +31,36 @@ export default function AdminPage() {
     const file = event.target.files?.[0]
     if (!file) return
 
+    // Vérifier que c'est un CSV
+    if (!file.name.toLowerCase().endsWith('.csv')) {
+      alert('Veuillez sélectionner un fichier CSV')
+      return
+    }
+
     setUploading(true)
+    setUploadResult(null)
+
     try {
-      // Simuler l'upload - À remplacer par l'appel à l'Edge Function de Person A
-      await new Promise(resolve => setTimeout(resolve, 2000))
-      alert(`Fichier "${file.name}" uploadé avec succès!`)
+      const result = await uploadTrafficCSV(file)
+      setUploadResult(result)
+      
+      if (result.success) {
+        // Recharger les données trafic après upload réussi
+        setTimeout(() => {
+          // Ici vous pourriez recharger les données trafic
+          console.log('CSV uploadé avec succès, données mises à jour')
+        }, 1000)
+      }
+    } catch (error) {
+      setUploadResult({
+        success: false,
+        message: 'Erreur technique lors de l\'upload'
+      })
+    } finally {
+      setUploading(false)
       if (fileInputRef.current) {
         fileInputRef.current.value = ''
       }
-    } catch (error) {
-      alert('Erreur lors de l\'upload')
-    } finally {
-      setUploading(false)
     }
   }
 
@@ -48,25 +68,10 @@ export default function AdminPage() {
     setSimulating(true)
     try {
       await updateParkingOccupancy(lotId, delta)
-      await loadParkings() // Recharger les données
+      await loadParkings()
       alert(`Parking mis à jour: ${delta > 0 ? 'Entrée' : 'Sortie'} de véhicule`)
     } catch (error) {
       alert('Erreur lors de la simulation')
-    } finally {
-      setSimulating(false)
-    }
-  }
-
-  const resetParkings = async () => {
-    if (!confirm('Réinitialiser tous les parkings à 0?')) return
-    
-    setSimulating(true)
-    try {
-      // Implémentez la réinitialisation ici
-      alert('Parkings réinitialisés')
-      await loadParkings()
-    } catch (error) {
-      alert('Erreur lors de la réinitialisation')
     } finally {
       setSimulating(false)
     }
@@ -81,6 +86,18 @@ export default function AdminPage() {
         {/* Upload Section */}
         <div className="bg-white rounded-xl shadow-lg p-6 mb-8">
           <h2 className="text-2xl font-semibold mb-4">📊 Upload des Données Trafic</h2>
+          
+          {/* Résultat de l'upload */}
+          {uploadResult && (
+            <div className={`mb-4 p-4 rounded-lg ${
+              uploadResult.success ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'
+            }`}>
+              <p className={uploadResult.success ? 'text-green-800' : 'text-red-800'}>
+                {uploadResult.message}
+              </p>
+            </div>
+          )}
+
           <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
             <div className="mb-4">
               <svg className="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48">
@@ -88,7 +105,9 @@ export default function AdminPage() {
               </svg>
             </div>
             <p className="text-gray-600 mb-2">Déposez votre fichier CSV de trafic ici</p>
-            <p className="text-sm text-gray-500 mb-4">Formats acceptés: .csv</p>
+            <p className="text-sm text-gray-500 mb-4">
+              Format attendu: CSV avec colonnes timestamp, road_segment, cars_count, avg_speed
+            </p>
             <input 
               ref={fileInputRef}
               type="file" 
@@ -104,8 +123,26 @@ export default function AdminPage() {
                 uploading ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 cursor-pointer'
               }`}
             >
-              {uploading ? '📤 Upload en cours...' : '📁 Choisir un fichier'}
+              {uploading ? (
+                <>
+                  <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  Upload en cours...
+                </>
+              ) : (
+                '📁 Choisir un fichier CSV'
+              )}
             </label>
+            
+            {/* Informations de débogage */}
+            <div className="mt-4 p-3 bg-blue-50 rounded-lg">
+              <p className="text-sm text-blue-700">
+                <strong>Endpoint utilisé:</strong><br/>
+                <code className="text-xs">https://mkuckawispatsoraztlh.supabase.co/functions/v1/analyzeTrafficCSV</code>
+              </p>
+            </div>
           </div>
         </div>
 
@@ -143,13 +180,6 @@ export default function AdminPage() {
 
           <div className="flex gap-4">
             <button
-              onClick={resetParkings}
-              disabled={simulating}
-              className="bg-gray-500 text-white px-6 py-2 rounded hover:bg-gray-600 disabled:bg-gray-300"
-            >
-              🔄 Réinitialiser Tous
-            </button>
-            <button
               onClick={loadParkings}
               className="bg-blue-500 text-white px-6 py-2 rounded hover:bg-blue-600"
             >
@@ -180,8 +210,10 @@ export default function AdminPage() {
             </div>
             <div className="bg-purple-50 rounded-lg p-4 text-center">
               <p className="text-2xl font-bold text-purple-600">
-                {((parkings.reduce((total, p) => total + p.current_occupied, 0) / 
-                  parkings.reduce((total, p) => total + p.capacity_total, 1)) * 100).toFixed(1)}%
+                {parkings.length > 0 ? 
+                  ((parkings.reduce((total, p) => total + p.current_occupied, 0) / 
+                    parkings.reduce((total, p) => total + p.capacity_total, 1)) * 100).toFixed(1) 
+                  : '0'}%
               </p>
               <p className="text-sm text-purple-600">Occupation moyenne</p>
             </div>
@@ -191,4 +223,3 @@ export default function AdminPage() {
     </div>
   )
 }
-
