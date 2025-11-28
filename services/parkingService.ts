@@ -10,61 +10,51 @@ export interface ParkingLot {
 }
 
 export async function getParkingLots(): Promise<ParkingLot[]> {
-  const { data, error } = await supabase
-    .from('parking_lots')
-    .select('*')
-    .order('name')
+  try {
+    const { data, error } = await supabase
+      .from('parking_lots')
+      .select('*')
+      .order('name')
 
-  if (error) {
-    console.error('Error fetching parking lots:', error)
-    throw new Error('Failed to fetch parking data')
+    if (error) {
+      console.error('Error fetching parking lots:', error)
+      throw new Error(`Failed to fetch parking data: ${error.message}`)
+    }
+
+    return data || []
+  } catch (error) {
+    console.error('Error in getParkingLots:', error)
+    throw error
   }
-
-  return data || []
 }
 
+// Utilise l'Edge Function de Person A
 export async function updateParkingOccupancy(lotId: number, delta: number) {
-  const { data: currentLot } = await supabase
-    .from('parking_lots')
-    .select('current_occupied')
-    .eq('id', lotId)
-    .single()
+  try {
+    const response = await fetch(
+      'https://mkuckawispatsoraztlh.supabase.co/functions/v1/updateParkingFromEvent',
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}`
+        },
+        body: JSON.stringify({
+          parking_lot_id: lotId,
+          delta: delta,
+          timestamp: new Date().toISOString()
+        })
+      }
+    )
 
-  if (!currentLot) throw new Error('Parking lot not found')
+    if (!response.ok) {
+      const errorText = await response.text()
+      throw new Error(`Edge Function error: ${response.status} - ${errorText}`)
+    }
 
-  const newOccupied = Math.max(0, Math.min(
-    currentLot.current_occupied + delta,
-    // Capacité maximale (vous devrez récupérer capacity_total)
-    100 // Temporaire - à remplacer par la vraie capacité
-  ))
-
-  const { error } = await supabase
-    .from('parking_lots')
-    .update({ current_occupied: newOccupied })
-    .eq('id', lotId)
-
-  if (error) throw error
-}
-// Fonction pour appeler l'Edge Function de Person A
-export async function triggerParkingUpdate(lotId: number, delta: number) {
-  // Remplacez par le vrai endpoint de Person A
-  const response = await fetch('https://mkuckawispatsoraztlh.supabase.co/functions/v1/updateParkingFromEvent', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}`
-    },
-    body: JSON.stringify({
-      parking_lot_id: lotId,
-      delta: delta,
-      timestamp: new Date().toISOString()
-    })
-  })
-
-  if (!response.ok) {
-    throw new Error('Failed to update parking')
+    return await response.json()
+  } catch (error) {
+    console.error('Error updating parking:', error)
+    throw error
   }
-
-  return response.json()
 }
-
